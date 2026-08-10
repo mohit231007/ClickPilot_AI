@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deployment-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -24,20 +28,43 @@ jobs:
       CLICKPILOT_API_URL: ${{ vars.CLICKPILOT_API_URL || 'https://clickpilot-api.onrender.com' }}
       CLICKPILOT_APP_URL: ${{ vars.CLICKPILOT_APP_URL || 'https://clickpilot-ai-mohit.streamlit.app' }}
     steps:
-      - name: API landing
-        run: curl --fail --show-error --retry 5 --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/"
+      - name: Wait for Render deployment readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..20}; do
+            status="$(curl --silent --show-error --output /tmp/landing.json --write-out '%{http_code}' --max-time 120 "$CLICKPILOT_API_URL/" || true)"
+            if [ "$status" = "200" ]; then
+              python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/landing.json').read_text())
+          assert body['service'] == 'ClickPilot AI API', body
+          assert body['status'] == 'ok', body
+          assert body['documentation'] == '/docs', body
+          print(f"Render deployment ready: service={body['service']}, version={body['version']}")
+          PY
+              exit 0
+            fi
+            echo "Render not ready yet (attempt $attempt/20, HTTP $status); waiting 15s..."
+            sleep 15
+          done
+          echo "Render did not expose the expected landing route within the readiness window."
+          cat /tmp/landing.json || true
+          exit 1
 
       - name: API health
-        run: curl --fail --show-error --retry 5 --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/health"
+        run: curl --fail --show-error --retry 5 --retry-all-errors --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/health"
 
       - name: API documentation
-        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/docs"
+        run: curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/docs"
 
       - name: Model metadata
-        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /tmp/model-info.json "$CLICKPILOT_API_URL/model-info"
+        run: curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 --output /tmp/model-info.json "$CLICKPILOT_API_URL/model-info"
 
       - name: Original benchmark endpoint
-        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /tmp/benchmark.json "$CLICKPILOT_API_URL/benchmark"
+        run: curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 --output /tmp/benchmark.json "$CLICKPILOT_API_URL/benchmark"
 
       - name: Validate benchmark separation
         run: |
@@ -59,7 +86,7 @@ jobs:
 
       - name: Live prediction contract
         run: |
-          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+          curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 \
             -X POST "$CLICKPILOT_API_URL/predict" \
             -H "Content-Type: application/json" \
             -d '{
@@ -94,7 +121,7 @@ jobs:
 
       - name: Batch prediction contract
         run: |
-          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+          curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 \
             -X POST "$CLICKPILOT_API_URL/predict-batch" \
             -H "Content-Type: application/json" \
             -d '{
@@ -147,7 +174,7 @@ jobs:
 
       - name: Scenario comparison contract
         run: |
-          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+          curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 \
             -X POST "$CLICKPILOT_API_URL/compare" \
             -H "Content-Type: application/json" \
             -d '{
@@ -199,7 +226,7 @@ jobs:
 
       - name: Labeled evaluation contract
         run: |
-          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+          curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 \
             -X POST "$CLICKPILOT_API_URL/evaluate" \
             -H "Content-Type: application/json" \
             -d '{
@@ -280,4 +307,4 @@ jobs:
           PY
 
       - name: Streamlit page
-        run: curl --fail --show-error --retry 5 --retry-delay 15 --max-time 120 --output /dev/null "$CLICKPILOT_APP_URL"
+        run: curl --fail --show-error --retry 5 --retry-all-errors --retry-delay 15 --max-time 120 --output /dev/null "$CLICKPILOT_APP_URL"
