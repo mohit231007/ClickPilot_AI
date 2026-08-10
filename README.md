@@ -2,27 +2,30 @@
 
 > **Turn click probability into better ad-ranking and value-aware campaign decisions.**
 
+[![Live App](https://img.shields.io/badge/Live%20App-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://clickpilot-ai-mohit.streamlit.app/)
+[![API Docs](https://img.shields.io/badge/API%20Docs-FastAPI-009688?logo=fastapi&logoColor=white)](https://clickpilot-api.onrender.com/docs)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Model](https://img.shields.io/badge/model-CatBoost-FFCC00.svg)](MODEL_CARD.md)
-[![API](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](api/main.py)
-[![Frontend](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](app/Home.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mohit231007/ClickPilot_AI)
 
-**ClickPilot AI** is an end-to-end CTR intelligence platform built from a real ad-click prediction case study. It combines leakage-aware temporal validation, CatBoost personalization, batch scoring, decision economics, monitoring, a Streamlit frontend, and a FastAPI backend.
+**Live application:** https://clickpilot-ai-mohit.streamlit.app/  
+**FastAPI service:** https://clickpilot-api.onrender.com  
+**Interactive API docs:** https://clickpilot-api.onrender.com/docs
 
-The original case-study evidence and the public demo model are deliberately separated. The validated metrics below come from the supplied challenge data; the live/public demo model is trained deterministically on synthetic schema-compatible rows so the source dataset is not redistributed.
+**ClickPilot AI** is an end-to-end CTR intelligence platform built from an ad-click prediction case study. It combines leakage-aware temporal validation, CatBoost personalization, batch scoring, decision economics, monitoring, a publicly deployed Streamlit frontend, and a separately deployed Dockerized FastAPI backend.
+
+The original case-study evidence and the public demo model are deliberately separated. The validated metrics below come from the supplied challenge data; the public application uses a deterministic synthetic CatBoost model so the source challenge rows are not redistributed.
 
 ## Why this project is different
 
-Most CTR projects end at a notebook and an AUC score. ClickPilot AI adds the product and ML-engineering layers required to make a ranking model inspectable and usable:
+Most CTR projects end at a notebook and an AUC score. ClickPilot AI adds the product and ML-engineering layers needed to make a ranking model inspectable and usable:
 
 - score a single ad opportunity,
 - rank a batch by click probability,
 - convert probability into expected business value using value-per-click and CPM,
 - compare baseline vs proposed targeting/placement scenarios,
-- expose predictions through FastAPI,
+- expose predictions through a public FastAPI service,
 - evaluate labeled post-deployment batches,
 - keep original benchmark claims traceable to the case-study notebook/PDF,
 - package tests, Docker, CI, monitoring, model-card, security, and responsible-use guidance.
@@ -56,31 +59,15 @@ The largest gain comes from user-level information, with additional lift from us
 
 ### 1. Impression scorer
 
-Enter an ad opportunity and receive:
-
-- predicted click probability,
-- propensity band,
-- lift versus the synthetic demo baseline,
-- expected value per impression / per 1,000 impressions,
-- value-positive serve recommendation under user-entered assumptions,
-- warnings for categories unseen in synthetic demo training.
+Enter an ad opportunity and receive predicted click probability, propensity band, lift versus the synthetic demo baseline, expected value per impression / per 1,000 impressions, a value-positive serve recommendation, and unseen-category warnings.
 
 ### 2. Batch ranking
 
-Upload a CSV, audit schema/date quality, score every row, rank opportunities, inspect expected CTR, and download the ranked output.
-
-If the batch also contains `is_click`, ClickPilot computes live monitoring metrics including ROC-AUC, PR-AUC, Brier score, log loss, precision, recall, and F1.
+Upload a CSV, audit schema/date quality, score every row, rank opportunities, inspect expected CTR, and download the ranked output. If the batch also contains `is_click`, ClickPilot computes live monitoring metrics including ROC-AUC, PR-AUC, Brier score, log loss, precision, recall, and F1.
 
 ### 3. Decision simulator
 
-Compare a baseline and proposed ad-delivery configuration through the same model and estimate:
-
-- probability-point change,
-- relative probability change,
-- incremental expected clicks for a chosen volume,
-- incremental expected value under value-per-click and CPM assumptions.
-
-The simulator is explicitly labeled **predictive, not causal**.
+Compare a baseline and proposed ad-delivery configuration through the same model and estimate probability-point change, relative probability change, incremental expected clicks for a chosen volume, and incremental expected value under value-per-click and CPM assumptions. The simulator is explicitly labeled **predictive, not causal**.
 
 ### 4. Model evidence
 
@@ -94,30 +81,39 @@ The product demonstrates the post-deployment path for labeled data and documents
 
 Partial SMOTE reduced false negatives from **2,572 to 2,034**, but ROC-AUC and PR-AUC did not improve. Full balance expanded the benchmark training sample from **80,000 to 148,740 rows (~1.86×)** and slightly reduced F1. The project therefore keeps CatBoost/class-weight/threshold strategies as the preferred production direction instead of adding offline cost without demonstrated ranking lift.
 
-## Architecture
+## Deployment architecture
 
 ```mermaid
 flowchart LR
-    A[Streamlit UI] -->|deployed mode| C[FastAPI]
-    A -->|local fallback| B[clickpilot package]
-    C --> B
-    D[Synthetic demo generator] --> E[CatBoost trainer]
-    E --> F[Versioned demo model bundle]
-    F --> B
-    B --> G[Feature engineering]
-    G --> H[Click probability]
-    H --> I[Ranking]
-    H --> J[Value-aware decision]
-    H --> K[Monitoring metrics]
-    L[Original notebook + PDF] --> M[Immutable benchmark evidence]
-    M --> A
-    M --> C
+    U[User / recruiter] --> S[Streamlit Community Cloud]
+    S -->|HTTPS / JSON| A[FastAPI on Render]
+    A --> P[clickpilot package]
+    P --> F[Feature engineering]
+    F --> M[Synthetic CatBoost demo bundle]
+    M --> R[Probability + ranking + economics]
+    R --> S
+    N[Original notebook + report] --> E[Immutable benchmark evidence]
+    E --> S
+    E --> A
 ```
+
+### Public services
+
+| Component | Provider | URL |
+|---|---|---|
+| Frontend | Streamlit Community Cloud | https://clickpilot-ai-mohit.streamlit.app/ |
+| Backend | Render | https://clickpilot-api.onrender.com |
+| Swagger / OpenAPI | FastAPI | https://clickpilot-api.onrender.com/docs |
+| Health | FastAPI | https://clickpilot-api.onrender.com/health |
+| Model metadata | FastAPI | https://clickpilot-api.onrender.com/model-info |
+| Original benchmark evidence | FastAPI | https://clickpilot-api.onrender.com/benchmark |
+
+The Render service uses the free portfolio tier and may cold-start after inactivity. The Streamlit HTTP client therefore uses a configurable timeout with a **90-second default** so a sleeping backend does not immediately appear as an application failure.
 
 ## Repository layout
 
 ```text
-clickpilot-ai/
+ClickPilot_AI/
 ├── app/                         # Streamlit decision interface
 ├── api/                         # FastAPI service + schemas
 ├── src/clickpilot/              # Feature, model, inference, audit, simulation logic
@@ -126,8 +122,9 @@ clickpilot-ai/
 ├── data/sample/                 # Synthetic public demonstration data
 ├── docs/                        # Architecture, deployment, LinkedIn/resume assets
 ├── notebooks/                   # Original analytical notebook
-├── reports/                     # Polished PDF case study
-├── .github/workflows/           # CI + optional deployment smoke checks
+├── reports/                     # Polished PDF case-study note/artifact location
+├── .github/workflows/           # CI + deployment smoke checks
+├── render.yaml                  # Render Blueprint
 ├── Dockerfile
 ├── docker-compose.yml
 ├── MODEL_CARD.md
@@ -166,13 +163,11 @@ python scripts/generate_demo_data.py --rows 5000
 python scripts/train.py
 ```
 
-Run the frontend locally (it uses the in-process package by default):
+Run the frontend locally:
 
 ```bash
 streamlit run app/Home.py
 ```
-
-For a true deployed frontend/backend split, set `CLICKPILOT_API_URL` in the Streamlit environment to the public FastAPI base URL. The UI will then route scoring, comparison, and monitoring calls through the backend.
 
 Run the API:
 
@@ -180,47 +175,25 @@ Run the API:
 uvicorn api.main:app --reload --port 8000
 ```
 
-Open Swagger at `http://127.0.0.1:8000/docs`.
-
-## API example
+For a true frontend/backend split, set:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "DateTime": "2026-07-06T14:30:00",
-    "user_id": "1500",
-    "product": "J",
-    "campaign_id": "C101",
-    "webpage_id": "W1",
-    "product_category_1": "1",
-    "product_category_2": null,
-    "user_group_id": "1",
-    "gender": "Male",
-    "age_level": "5",
-    "user_depth": "2",
-    "city_development_index": "4",
-    "var_1": "0",
-    "value_per_click": 1.5,
-    "cpm_cost": 25
-  }'
+CLICKPILOT_API_URL=https://clickpilot-api.onrender.com
+CLICKPILOT_HTTP_TIMEOUT=90
 ```
 
-The API returns probability, propensity band, expected value, value-aware serve decision, warnings, and model version.
+## API endpoints
 
-## Public deployment
+- `GET /` — public service landing response
+- `GET /health` — service health
+- `GET /model-info` — demo model metadata + original benchmark separation
+- `GET /benchmark` — original case-study evidence
+- `POST /predict` — single impression
+- `POST /predict-batch` — multiple impressions
+- `POST /compare` — baseline vs proposed scenario
+- `POST /evaluate` — labeled-batch monitoring
 
-The backend is deployment-ready through the root [`render.yaml`](render.yaml) Blueprint. The recommended portfolio topology is **Render FastAPI + Streamlit Community Cloud**. After the API is live, set the Streamlit root secret `CLICKPILOT_API_URL` to the Render base URL so the public frontend exercises the deployed backend rather than the local fallback.
-
-Deployment coordinates:
-
-- Render Blueprint: repository root `render.yaml`
-- Streamlit repository: `mohit231007/ClickPilot_AI`
-- Branch: `main`
-- Streamlit entrypoint: `app/Home.py`
-- Recommended Python: `3.12`
-
-See [Deployment guide](docs/deployment.md) and [Streamlit deployment checklist](docs/STREAMLIT_DEPLOY.md).
+Interactive Swagger: **https://clickpilot-api.onrender.com/docs**
 
 ## Quality checks
 
@@ -249,6 +222,7 @@ See [MODEL_CARD.md](MODEL_CARD.md) and [docs/responsible-use.md](docs/responsibl
 
 ## Portfolio assets
 
+- [Live deployment status](docs/LIVE_DEPLOYMENT_STATUS.md)
 - [LinkedIn launch package](docs/LINKEDIN_LAUNCH.md)
 - [Resume-ready project copy](docs/RESUME.md)
 - [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
@@ -268,8 +242,10 @@ See [MODEL_CARD.md](MODEL_CARD.md) and [docs/responsible-use.md](docs/responsibl
 - [x] Labeled-batch monitoring metrics
 - [x] Model card and responsible-use documentation
 - [x] Docker + CI + smoke workflow
-- [ ] Deploy permanent Streamlit URL
-- [ ] Deploy public FastAPI endpoint
+- [x] Deploy public FastAPI endpoint
+- [x] Deploy permanent Streamlit URL
+- [x] Connect Streamlit to deployed FastAPI
+- [ ] Complete live functional acceptance QA
 - [ ] Add calibration curve and reliability diagram
 - [ ] Add SHAP/local explanation panel
 - [ ] Add feature-store-compatible historical CTR features
