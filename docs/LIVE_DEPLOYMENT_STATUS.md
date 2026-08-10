@@ -101,10 +101,10 @@ The remaining items are operational / presentation proof rather than core functi
 
 - [ ] Confirm the newest push-triggered CI run after the final documentation commits
 - [ ] Confirm a deployment-smoke run after the Render-readiness polling fix
-- [ ] Capture a live narrow/mobile-width visual review
-- [ ] Commit polished public screenshot assets to the repository
+- [ ] Capture a live narrow/mobile-width visual review — see [MOBILE_QA.md](MOBILE_QA.md)
+- [ ] Commit polished public screenshot assets — see [SCREENSHOT_GUIDE.md](SCREENSHOT_GUIDE.md)
 - [ ] Add `Ad_Click_Prediction_Submission_Formatted_Mohit_Bhatnagar.pdf` under `reports/`
-- [ ] Record the 20–30 second recruiter demo using `RECRUITER_DEMO.md`
+- [ ] Record the 20–30 second recruiter demo using [RECRUITER_DEMO.md](RECRUITER_DEMO.md)
 
 GitHub repository variables for the live URLs are optional because the deployment-smoke workflow now contains the public URLs as safe defaults; variables can still override them if desired.
 
