@@ -248,11 +248,14 @@ See [MODEL_CARD.md](MODEL_CARD.md) and [docs/responsible-use.md](docs/responsibl
 ## Portfolio assets
 
 - [Public release acceptance](docs/RELEASE_ACCEPTANCE.md)
+- [v1.0.0 release notes](docs/RELEASE_NOTES_v1.0.0.md)
 - [Live deployment status](docs/LIVE_DEPLOYMENT_STATUS.md)
 - [LinkedIn launch package](docs/LINKEDIN_LAUNCH.md)
 - [20–30 second recruiter demo](docs/RECRUITER_DEMO.md)
 - [Resume-ready project copy](docs/RESUME.md)
 - [Interview defense guide](docs/INTERVIEW_DEFENSE.md)
+- [Narrow/mobile QA boundary](docs/MOBILE_QA.md)
+- [Screenshot packaging guide](docs/SCREENSHOT_GUIDE.md)
 - [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
 - [Architecture](docs/architecture.md)
 - [Deployment guide](docs/deployment.md)
