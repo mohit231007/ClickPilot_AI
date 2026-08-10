@@ -1,0 +1,17 @@
+name: Deployment smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+jobs:
+  smoke:
+    if: ${{ vars.CLICKPILOT_API_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: API health
+        run: curl --fail --retry 3 "${{ vars.CLICKPILOT_API_URL }}/health"
+      - name: Streamlit page
+        if: ${{ vars.CLICKPILOT_APP_URL != '' }}
+        run: curl --fail --retry 3 "${{ vars.CLICKPILOT_APP_URL }}"
