@@ -8,6 +8,7 @@
 [![API](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](api/main.py)
 [![Frontend](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](app/Home.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mohit231007/ClickPilot_AI)
 
 **ClickPilot AI** is an end-to-end CTR intelligence platform built from a real ad-click prediction case study. It combines leakage-aware temporal validation, CatBoost personalization, batch scoring, decision economics, monitoring, a Streamlit frontend, and a FastAPI backend.
 
@@ -206,6 +207,20 @@ curl -X POST "http://127.0.0.1:8000/predict" \
 ```
 
 The API returns probability, propensity band, expected value, value-aware serve decision, warnings, and model version.
+
+## Public deployment
+
+The backend is deployment-ready through the root [`render.yaml`](render.yaml) Blueprint. The recommended portfolio topology is **Render FastAPI + Streamlit Community Cloud**. After the API is live, set the Streamlit root secret `CLICKPILOT_API_URL` to the Render base URL so the public frontend exercises the deployed backend rather than the local fallback.
+
+Deployment coordinates:
+
+- Render Blueprint: repository root `render.yaml`
+- Streamlit repository: `mohit231007/ClickPilot_AI`
+- Branch: `main`
+- Streamlit entrypoint: `app/Home.py`
+- Recommended Python: `3.12`
+
+See [Deployment guide](docs/deployment.md) and [Streamlit deployment checklist](docs/STREAMLIT_DEPLOY.md).
 
 ## Quality checks
 
