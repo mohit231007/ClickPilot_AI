@@ -19,7 +19,9 @@
 - Blueprint-managed from the repository root `render.yaml`
 - Auto-deploy trigger: commits to the connected repository
 
-The first public deployment succeeded on 2026-08-11 (IST). The initial base URL returned FastAPI's default 404 because no `/` route existed. A human-friendly root route was then added so the public API landing URL exposes the service name, status, API version, and navigation paths.
+The first public deployment succeeded on 2026-08-11 (IST). The initial base URL returned FastAPI's default 404 because no `/` route existed. A human-friendly root route was later added in source, but deployment readiness must not depend on that cosmetic landing route.
+
+The authoritative deployment-readiness contract is `GET /health`, which returns the ClickPilot service health response and is also the endpoint configured as Render's `healthCheckPath`. Deployment smoke now polls `/health` until the expected contract is available; the `/` landing route is checked only as informational portfolio polish.
 
 Because the backend runs on Render's free plan, it may cold-start after inactivity. The Streamlit client therefore uses a configurable HTTP timeout with a 90-second default via `CLICKPILOT_HTTP_TIMEOUT`.
 
@@ -47,7 +49,6 @@ Completed:
 - [x] Streamlit configured with the Render API URL
 - [x] Application loads publicly
 - [x] Runtime card reports `FastAPI`
-- [x] Root API landing route added
 - [x] Free-tier cold-start timeout hardened
 - [x] Single-impression public scoring accepted
 - [x] 50-row batch ranking accepted
@@ -55,6 +56,7 @@ Completed:
 - [x] Baseline-versus-proposed decision simulator accepted
 - [x] 1,000-row synthetic monitoring evaluation accepted
 - [x] Original case-study metrics remain explicitly separated from synthetic-demo metrics
+- [x] Latest observed CI run is green
 
 ### Accepted public results
 
@@ -95,17 +97,20 @@ These are public-demo acceptance results. They do not replace the original case-
 
 See [RELEASE_ACCEPTANCE.md](RELEASE_ACCEPTANCE.md) for the acceptance record.
 
+## Deployment-smoke history
+
+Deployment smoke #6 ran for roughly the entire previous 20 × 15-second polling window and failed before downstream endpoint checks. The gate was still waiting for the optional `/` landing route. Commit `bd050fa` changes readiness to the authoritative `/health` contract and keeps the landing route informational.
+
 ## Operational release items
 
 The remaining items are operational / presentation proof rather than core functional QA:
 
-- [ ] Confirm the newest push-triggered CI run after the final documentation commits
-- [ ] Confirm a deployment-smoke run after the Render-readiness polling fix
+- [ ] Confirm the deployment-smoke run triggered by `bd050fa` is green
 - [ ] Capture a live narrow/mobile-width visual review — see [MOBILE_QA.md](MOBILE_QA.md)
 - [ ] Commit polished public screenshot assets — see [SCREENSHOT_GUIDE.md](SCREENSHOT_GUIDE.md)
 - [ ] Add `Ad_Click_Prediction_Submission_Formatted_Mohit_Bhatnagar.pdf` under `reports/`
 - [ ] Record the 20–30 second recruiter demo using [RECRUITER_DEMO.md](RECRUITER_DEMO.md)
 
-GitHub repository variables for the live URLs are optional because the deployment-smoke workflow now contains the public URLs as safe defaults; variables can still override them if desired.
+GitHub repository variables for the live URLs are optional because the deployment-smoke workflow contains the public URLs as safe defaults; variables can still override them if desired.
 
 The product itself has passed public functional acceptance. Remaining work is release evidence and presentation packaging.
