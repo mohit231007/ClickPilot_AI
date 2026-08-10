@@ -39,6 +39,13 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+# Keep the production lint contract explicit so Ruff upgrades do not silently
+# broaden the rule set. The original notebook is preserved as case-study evidence
+# and is intentionally not treated as a standalone Python module.
+select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
