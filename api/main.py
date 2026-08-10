@@ -67,6 +67,22 @@ def _prediction_for(request: ImpressionRequest) -> PredictionResponse:
     )
 
 
+@app.get("/")
+def root() -> dict:
+    """Human-friendly landing response for the public portfolio API."""
+
+    return {
+        "service": "ClickPilot AI API",
+        "status": "ok",
+        "version": app.version,
+        "message": "CTR scoring, ranking, decision economics, and monitoring API.",
+        "documentation": "/docs",
+        "health": "/health",
+        "model_info": "/model-info",
+        "benchmark": "/benchmark",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "clickpilot-ai"}
