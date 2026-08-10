@@ -1,4 +1,3 @@
-import pandas as pd
 import pytest
 
 from clickpilot.demo_data import generate_demo_dataset
@@ -8,7 +7,16 @@ from clickpilot.features import add_features, model_matrix
 def test_feature_engineering_creates_interactions():
     frame = generate_demo_dataset(rows=5, seed=1, include_target=True)
     transformed = add_features(frame)
-    assert {"hour", "minute", "dow", "is_weekend", "daypart", "user_product", "campaign_webpage", "gender_age"}.issubset(transformed.columns)
+    assert {
+        "hour",
+        "minute",
+        "dow",
+        "is_weekend",
+        "daypart",
+        "user_product",
+        "campaign_webpage",
+        "gender_age",
+    }.issubset(transformed.columns)
     assert len(model_matrix(frame)) == 5
 
 
