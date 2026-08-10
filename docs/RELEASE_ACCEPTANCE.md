@@ -96,4 +96,17 @@ Synthetic acceptance metrics must not be presented as replacements for those ori
 
 ## Release interpretation
 
-The four user-facing product workflows have passed public functional acceptance: single scoring, batch ranking/export, scenario simulation, and monitoring. The remaining release evidence is operational proof such as final CI/deployment-smoke status, narrow-width visual review, public screenshots/demo recording, and the formatted PDF artifact in `reports/`.
+The four user-facing product workflows have passed public functional acceptance: single scoring, batch ranking/export, scenario simulation, and monitoring.
+
+The remaining release evidence is operational/presentation proof rather than core functional QA: newest CI/deployment-smoke status, live narrow-width visual review, binary screenshot/PDF repository attachment, and the final recruiter demo recording.
+
+## Related release assets
+
+- `docs/RELEASE_NOTES_v1.0.0.md`
+- `docs/PORTFOLIO_CASE_STUDY.md`
+- `docs/LINKEDIN_LAUNCH.md`
+- `docs/RESUME.md`
+- `docs/RECRUITER_DEMO.md`
+- `docs/INTERVIEW_DEFENSE.md`
+- `docs/MOBILE_QA.md`
+- `docs/SCREENSHOT_GUIDE.md`
