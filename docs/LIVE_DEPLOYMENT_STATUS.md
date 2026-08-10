@@ -57,6 +57,7 @@ Completed:
 - [x] 1,000-row synthetic monitoring evaluation accepted
 - [x] Original case-study metrics remain explicitly separated from synthetic-demo metrics
 - [x] Latest observed CI run is green
+- [x] Deployment smoke #7 is green after switching readiness to `/health`
 
 ### Accepted public results
 
@@ -99,13 +100,14 @@ See [RELEASE_ACCEPTANCE.md](RELEASE_ACCEPTANCE.md) for the acceptance record.
 
 ## Deployment-smoke history
 
-Deployment smoke #6 ran for roughly the entire previous 20 × 15-second polling window and failed before downstream endpoint checks. The gate was still waiting for the optional `/` landing route. Commit `bd050fa` changes readiness to the authoritative `/health` contract and keeps the landing route informational.
+Deployment smoke #6 ran for roughly the entire previous 20 × 15-second polling window and failed before downstream endpoint checks because the gate was still waiting for the optional `/` landing route. Commit `bd050fa` changed readiness to the authoritative `/health` contract and kept the landing route informational.
+
+Deployment smoke #7 then completed successfully in **1m09s**, confirming the corrected readiness design and the full live smoke sequence.
 
 ## Operational release items
 
-The remaining items are operational / presentation proof rather than core functional QA:
+Engineering / operations gates are now complete. Remaining work is presentation proof:
 
-- [ ] Confirm the deployment-smoke run triggered by `bd050fa` is green
 - [ ] Capture a live narrow/mobile-width visual review — see [MOBILE_QA.md](MOBILE_QA.md)
 - [ ] Commit polished public screenshot assets — see [SCREENSHOT_GUIDE.md](SCREENSHOT_GUIDE.md)
 - [ ] Add `Ad_Click_Prediction_Submission_Formatted_Mohit_Bhatnagar.pdf` under `reports/`
@@ -113,4 +115,4 @@ The remaining items are operational / presentation proof rather than core functi
 
 GitHub repository variables for the live URLs are optional because the deployment-smoke workflow contains the public URLs as safe defaults; variables can still override them if desired.
 
-The product itself has passed public functional acceptance. Remaining work is release evidence and presentation packaging.
+The product has passed public functional acceptance, CI, and live deployment smoke. Remaining work is presentation packaging only.
