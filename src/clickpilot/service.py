@@ -15,6 +15,8 @@ import pandas as pd
 from clickpilot.inference import ModelBundle, evaluate_labeled_batch, score_impressions
 from clickpilot.simulation import compare_scenarios
 
+DEFAULT_HTTP_TIMEOUT_SECONDS = 90.0
+
 
 def api_url() -> str | None:
     value = os.getenv("CLICKPILOT_API_URL", "").strip().rstrip("/")
@@ -23,6 +25,16 @@ def api_url() -> str | None:
 
 def backend_mode() -> str:
     return "FastAPI" if api_url() else "Local package"
+
+
+def _http_timeout() -> float:
+    """Allow slow free-tier cold starts without hard-coding deployment behavior."""
+
+    raw_value = os.getenv("CLICKPILOT_HTTP_TIMEOUT", str(DEFAULT_HTTP_TIMEOUT_SECONDS)).strip()
+    try:
+        return max(float(raw_value), 1.0)
+    except ValueError:
+        return DEFAULT_HTTP_TIMEOUT_SECONDS
 
 
 def _payload(record: dict[str, Any], value_per_click: float, cpm_cost: float) -> dict[str, Any]:
@@ -55,7 +67,7 @@ def score_records(
         _payload(record, value_per_click, cpm_cost)
         for record in frame.to_dict(orient="records")
     ]
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=_http_timeout()) as client:
         response = client.post(f"{endpoint}/predict-batch", json={"impressions": requests})
         response.raise_for_status()
     output = pd.DataFrame(response.json()["predictions"])
@@ -88,7 +100,7 @@ def compare_records(
         "proposed": _payload(proposed, value_per_click, cpm_cost),
         "volume": int(volume),
     }
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=_http_timeout()) as client:
         response = client.post(f"{endpoint}/compare", json=payload)
         response.raise_for_status()
     return response.json()
@@ -105,7 +117,7 @@ def evaluate_records(bundle: ModelBundle, frame: pd.DataFrame) -> dict[str, Any]
         payload = _payload(record, 1.0, 0.0)
         payload["is_click"] = click
         records.append(payload)
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=_http_timeout()) as client:
         response = client.post(f"{endpoint}/evaluate", json={"impressions": records})
         response.raise_for_status()
     return response.json()
