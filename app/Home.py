@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -38,6 +39,10 @@ from clickpilot.demo_data import (
 from clickpilot.inference import load_or_create_bundle
 from clickpilot.service import backend_mode, compare_records, evaluate_records, score_records
 
+LIVE_APP_URL = "https://clickpilot-ai-mohit.streamlit.app/"
+LIVE_API_DOCS = "https://clickpilot-api.onrender.com/docs"
+GITHUB_URL = "https://github.com/mohit231007/ClickPilot_AI"
+
 st.set_page_config(page_title="ClickPilot AI", page_icon="🎯", layout="wide")
 
 st.markdown(
@@ -48,7 +53,6 @@ st.markdown(
 .hero h1 {margin:0; font-size:2.55rem;}
 .hero p {margin:0.4rem 0 0 0; color:#dbe9f4; font-size:1.05rem;}
 .kicker {font-size:.8rem; letter-spacing:.11rem; text-transform:uppercase; color:#5eead4; font-weight:700;}
-.small-note {font-size:.88rem; color:#64748b;}
 [data-testid="stMetric"] {border:1px solid rgba(148,163,184,.25); border-radius:14px; padding:12px;}
 </style>
 """,
@@ -66,6 +70,75 @@ def demo_batch(rows: int = 80, seed: int = 7, labels: bool = True):
     return generate_demo_dataset(rows=rows, seed=seed, include_target=labels)
 
 
+def _optional(value: str):
+    return None if value == "MISSING" else value
+
+
+def _warning_text(value: Any) -> str:
+    """Normalize local string warnings and FastAPI list warnings for the UI."""
+
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(str(item) for item in value if str(item).strip())
+    text = str(value).strip()
+    return "" if text.lower() in {"", "nan", "none", "[]"} else text
+
+
+def _label(prefix: str, field: str, *, show_prefix: bool) -> str:
+    return f"{prefix} {field}" if show_prefix else field
+
+
+def build_record(
+    prefix: str,
+    *,
+    default_product: str = "J",
+    default_campaign: str = "C101",
+    default_webpage: str = "W1",
+    show_prefix: bool = True,
+):
+    """Build one impression record while keeping widget keys unique across tabs."""
+
+    left, middle, right = st.columns(3)
+    with left:
+        user_id = st.text_input(_label(prefix, "User ID", show_prefix=show_prefix), value="1500", key=f"{prefix}_user")
+        product = st.selectbox(_label(prefix, "Product", show_prefix=show_prefix), PRODUCTS, index=PRODUCTS.index(default_product), key=f"{prefix}_product")
+        campaign = st.selectbox(_label(prefix, "Campaign", show_prefix=show_prefix), CAMPAIGNS, index=CAMPAIGNS.index(default_campaign), key=f"{prefix}_campaign")
+        webpage = st.selectbox(_label(prefix, "Webpage / placement", show_prefix=show_prefix), WEBPAGES, index=WEBPAGES.index(default_webpage), key=f"{prefix}_webpage")
+    with middle:
+        pc1 = st.selectbox(_label(prefix, "Product category 1", show_prefix=show_prefix), PRODUCT_CAT_1, key=f"{prefix}_pc1")
+        pc2 = st.selectbox(_label(prefix, "Product category 2", show_prefix=show_prefix), ["MISSING"] + PRODUCT_CAT_2, key=f"{prefix}_pc2")
+        gender = st.selectbox(_label(prefix, "Gender", show_prefix=show_prefix), ["MISSING"] + GENDERS, index=1, key=f"{prefix}_gender")
+        age = st.selectbox(_label(prefix, "Age level", show_prefix=show_prefix), ["MISSING"] + AGE_LEVELS, index=5, key=f"{prefix}_age")
+    with right:
+        group = st.selectbox(_label(prefix, "User group", show_prefix=show_prefix), ["MISSING"] + USER_GROUPS, index=1, key=f"{prefix}_group")
+        depth = st.selectbox(_label(prefix, "User depth", show_prefix=show_prefix), ["MISSING"] + USER_DEPTHS, index=2, key=f"{prefix}_depth")
+        city = st.selectbox(_label(prefix, "City development index", show_prefix=show_prefix), ["MISSING"] + CITY_INDEX, index=4, key=f"{prefix}_city")
+        var1 = st.selectbox(_label(prefix, "Anonymized variable (var_1)", show_prefix=show_prefix), VAR1, key=f"{prefix}_var1")
+
+    dt_col, minute_col = st.columns(2)
+    with dt_col:
+        event_date = st.date_input(_label(prefix, "Impression date", show_prefix=show_prefix), value=datetime(2026, 7, 6).date(), key=f"{prefix}_date")
+    with minute_col:
+        event_time = st.time_input(_label(prefix, "Impression time", show_prefix=show_prefix), value=datetime(2026, 7, 6, 14, 30).time(), key=f"{prefix}_time")
+
+    return {
+        "DateTime": pd.Timestamp.combine(event_date, event_time),
+        "user_id": user_id,
+        "product": product,
+        "campaign_id": campaign,
+        "webpage_id": webpage,
+        "product_category_1": pc1,
+        "product_category_2": _optional(pc2),
+        "user_group_id": _optional(group),
+        "gender": _optional(gender),
+        "age_level": _optional(age),
+        "user_depth": _optional(depth),
+        "city_development_index": _optional(city),
+        "var_1": var1,
+    }
+
+
 model = bundle()
 
 st.markdown(
@@ -78,6 +151,16 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+proof1, proof2, proof3, proof4 = st.columns([1, 1, 1, 3])
+with proof1:
+    st.link_button("GitHub", GITHUB_URL, use_container_width=True)
+with proof2:
+    st.link_button("API docs", LIVE_API_DOCS, use_container_width=True)
+with proof3:
+    st.link_button("Live app", LIVE_APP_URL, use_container_width=True)
+with proof4:
+    st.caption("Public portfolio deployment · Streamlit frontend → HTTPS/JSON → Render FastAPI backend")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Original impressions", f"{ORIGINAL_TRAIN_IMPRESSIONS:,}")
@@ -94,55 +177,10 @@ scorer_tab, batch_tab, simulator_tab, evidence_tab, monitoring_tab = st.tabs(
     ["🎯 Impression scorer", "📦 Batch ranking", "🧪 Decision simulator", "📚 Model & evidence", "📡 Monitoring"]
 )
 
-
-def build_record(prefix: str, *, default_product: str = "J", default_campaign: str = "C101", default_webpage: str = "W1"):
-    left, middle, right = st.columns(3)
-    with left:
-        user_id = st.text_input(f"{prefix} user ID", value="1500", key=f"{prefix}_user")
-        product = st.selectbox(f"{prefix} product", PRODUCTS, index=PRODUCTS.index(default_product), key=f"{prefix}_product")
-        campaign = st.selectbox(f"{prefix} campaign", CAMPAIGNS, index=CAMPAIGNS.index(default_campaign), key=f"{prefix}_campaign")
-        webpage = st.selectbox(f"{prefix} webpage", WEBPAGES, index=WEBPAGES.index(default_webpage), key=f"{prefix}_webpage")
-    with middle:
-        pc1 = st.selectbox(f"{prefix} product category 1", PRODUCT_CAT_1, key=f"{prefix}_pc1")
-        pc2 = st.selectbox(f"{prefix} product category 2", ["MISSING"] + PRODUCT_CAT_2, key=f"{prefix}_pc2")
-        gender = st.selectbox(f"{prefix} gender", ["MISSING"] + GENDERS, index=1, key=f"{prefix}_gender")
-        age = st.selectbox(f"{prefix} age level", ["MISSING"] + AGE_LEVELS, index=5, key=f"{prefix}_age")
-    with right:
-        group = st.selectbox(f"{prefix} user group", ["MISSING"] + USER_GROUPS, index=1, key=f"{prefix}_group")
-        depth = st.selectbox(f"{prefix} user depth", ["MISSING"] + USER_DEPTHS, index=2, key=f"{prefix}_depth")
-        city = st.selectbox(f"{prefix} city development index", ["MISSING"] + CITY_INDEX, index=4, key=f"{prefix}_city")
-        var1 = st.selectbox(f"{prefix} var_1", VAR1, key=f"{prefix}_var1")
-
-    dt_col, minute_col = st.columns(2)
-    with dt_col:
-        event_date = st.date_input(f"{prefix} impression date", value=datetime(2026, 7, 6).date(), key=f"{prefix}_date")
-    with minute_col:
-        event_time = st.time_input(f"{prefix} impression time", value=datetime(2026, 7, 6, 14, 30).time(), key=f"{prefix}_time")
-
-    def optional(value: str):
-        return None if value == "MISSING" else value
-
-    return {
-        "DateTime": pd.Timestamp.combine(event_date, event_time),
-        "user_id": user_id,
-        "product": product,
-        "campaign_id": campaign,
-        "webpage_id": webpage,
-        "product_category_1": pc1,
-        "product_category_2": optional(pc2),
-        "user_group_id": optional(group),
-        "gender": optional(gender),
-        "age_level": optional(age),
-        "user_depth": optional(depth),
-        "city_development_index": optional(city),
-        "var_1": var1,
-    }
-
-
 with scorer_tab:
     st.markdown("### Score one ad opportunity")
     st.caption("The probability is produced by the synthetic public-demo model; use the original benchmark only for validated case-study claims.")
-    record = build_record("Scorer")
+    record = build_record("Scorer", show_prefix=False)
     econ1, econ2 = st.columns(2)
     with econ1:
         value_per_click = st.number_input("Business value per click", min_value=0.0, value=1.50, step=0.10)
@@ -150,12 +188,13 @@ with scorer_tab:
         cpm_cost = st.number_input("Media cost per 1,000 impressions (CPM)", min_value=0.0, value=25.0, step=1.0)
 
     if st.button("Score impression", type="primary", use_container_width=True):
-        result = score_records(
-            model,
-            pd.DataFrame([record]),
-            value_per_click=value_per_click,
-            cpm_cost=cpm_cost,
-        ).iloc[0]
+        with st.spinner("Scoring through the deployed decision service..."):
+            result = score_records(
+                model,
+                pd.DataFrame([record]),
+                value_per_click=value_per_click,
+                cpm_cost=cpm_cost,
+            ).iloc[0]
         a, b, c, d = st.columns(4)
         a.metric("Click probability", f"{result['click_probability']:.2%}")
         b.metric("Propensity band", result["propensity_band"])
@@ -165,8 +204,9 @@ with scorer_tab:
             st.success("Value-aware decision: positive expected value under the entered click value and CPM assumptions.")
         else:
             st.warning("Value-aware decision: negative expected value under the entered click value and CPM assumptions.")
-        if result["warnings"]:
-            st.warning("Model familiarity warning: " + result["warnings"])
+        warning_text = _warning_text(result.get("warnings"))
+        if warning_text:
+            st.warning("Model familiarity warning: " + warning_text)
         st.caption("This is a predictive ranking/value calculation, not a causal claim that changing a field will create the modeled uplift.")
 
 with batch_tab:
@@ -195,7 +235,8 @@ with batch_tab:
         if report.missing_required_columns or report.invalid_datetime_count:
             st.error("Fix the schema/date errors before scoring the batch.")
         else:
-            scored = score_records(model, frame, value_per_click=1.5, cpm_cost=25.0)
+            with st.spinner("Ranking impressions through the deployed decision service..."):
+                scored = score_records(model, frame, value_per_click=1.5, cpm_cost=25.0)
             if "session_id" in frame.columns and "session_id" not in scored.columns:
                 scored.insert(0, "session_id", frame["session_id"])
             scored = scored.sort_values("click_probability", ascending=False)
@@ -231,14 +272,15 @@ with simulator_tab:
         sim_volume = st.number_input("Comparison volume", min_value=1_000, max_value=10_000_000, value=100_000, step=10_000)
 
     if st.button("Compare scenarios", use_container_width=True):
-        comparison = compare_records(
-            model,
-            baseline,
-            proposed,
-            value_per_click=sim_value,
-            cpm_cost=sim_cpm,
-            volume=int(sim_volume),
-        )
+        with st.spinner("Comparing both scenarios..."):
+            comparison = compare_records(
+                model,
+                baseline,
+                proposed,
+                value_per_click=sim_value,
+                cpm_cost=sim_cpm,
+                volume=int(sim_volume),
+            )
         s1, s2, s3, s4 = st.columns(4)
         s1.metric("Baseline probability", f"{comparison['baseline_probability']:.2%}")
         s2.metric("Proposed probability", f"{comparison['proposed_probability']:.2%}")
@@ -286,19 +328,21 @@ with monitoring_tab:
     st.write(
         "A deployed CTR model should be monitored on ranking quality, calibration, observed CTR, feature drift, segment performance, and feedback-loop risk. This tab evaluates a deterministic labeled synthetic stream to prove the monitoring path."
     )
-    stream = demo_batch(rows=1000, seed=99, labels=True)
-    metrics = evaluate_records(model, stream)
-    r1, r2, r3, r4 = st.columns(4)
-    r1.metric("Synthetic stream ROC-AUC", f"{metrics['roc_auc']:.3f}" if metrics['roc_auc'] is not None else "N/A")
-    r2.metric("Synthetic stream PR-AUC", f"{metrics['pr_auc']:.3f}" if metrics['pr_auc'] is not None else "N/A")
-    r3.metric("Observed CTR", f"{metrics['observed_ctr']:.2%}")
-    r4.metric("Mean predicted CTR", f"{metrics['mean_predicted_ctr']:.2%}")
-    st.json(metrics)
+    if st.button("Run monitoring evaluation", type="primary", use_container_width=True):
+        stream = demo_batch(rows=1000, seed=99, labels=True)
+        with st.spinner("Evaluating the labeled synthetic stream through the deployed backend..."):
+            metrics = evaluate_records(model, stream)
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric("Synthetic stream ROC-AUC", f"{metrics['roc_auc']:.3f}" if metrics['roc_auc'] is not None else "N/A")
+        r2.metric("Synthetic stream PR-AUC", f"{metrics['pr_auc']:.3f}" if metrics['pr_auc'] is not None else "N/A")
+        r3.metric("Observed CTR", f"{metrics['observed_ctr']:.2%}")
+        r4.metric("Mean predicted CTR", f"{metrics['mean_predicted_ctr']:.2%}")
+        st.json(metrics)
     st.warning(
         "Production monitoring must use real post-deployment labels and privacy-approved features. Demographic fields should be reviewed for fairness and never used as hard exclusion rules without policy/legal review."
     )
 
 st.divider()
 st.caption(
-    f"ClickPilot AI · original case study: {ORIGINAL_TRAIN_IMPRESSIONS:,} impressions / {ORIGINAL_TRAIN_CLICKS:,} clicks · public demo model: {model.model_version}"
+    f"ClickPilot AI · original case study: {ORIGINAL_TRAIN_IMPRESSIONS:,} impressions / {ORIGINAL_TRAIN_CLICKS:,} clicks · public demo model: {model.model_version} · backend: {backend_mode()}"
 )
