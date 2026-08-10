@@ -17,6 +17,17 @@
 
 The original case-study evidence and the public demo model are deliberately separated. The validated metrics below come from the supplied challenge data; the public application uses a deterministic synthetic CatBoost model so the source challenge rows are not redistributed.
 
+## Release status
+
+**Public functional acceptance is complete.** The deployed application has been exercised successfully across all four user-facing workflows:
+
+- single-impression scoring,
+- 50-row batch ranking plus ranked CSV export,
+- predictive baseline-versus-proposed scenario comparison,
+- 1,000-row labeled synthetic monitoring evaluation.
+
+See [Public Release Acceptance](docs/RELEASE_ACCEPTANCE.md) for the evidence record. Synthetic acceptance metrics are kept separate from the original case-study holdout metrics below.
+
 ## Why this project is different
 
 Most CTR projects end at a notebook and an AUC score. ClickPilot AI adds the product and ML-engineering layers needed to make a ranking model inspectable and usable:
@@ -77,6 +88,20 @@ The app exposes the original model comparison, personalization ablation, SMOTE e
 
 The product demonstrates the post-deployment path for labeled data and documents the controls required for privacy, fairness, calibration, drift, and feedback-loop monitoring.
 
+## Live acceptance snapshot
+
+The public demo has been exercised end-to-end. Selected acceptance results:
+
+| Workflow | Public acceptance result |
+|---|---|
+| Single score | 5.00% click probability, Medium propensity, 0.79× lift, 50.00 expected value / 1K |
+| Batch ranking | 50 rows, 5.96% mean predicted CTR, 4.0% high-propensity share, 5,958 expected clicks / 100K |
+| Ranked export | 50 output rows, descending probabilities, `demo-1.0.0`, no missing output values |
+| Scenario simulator | 5.51% baseline vs 4.80% proposed; -708 expected clicks / 100K in the default comparison |
+| Monitoring | 1,000 synthetic labeled rows; 6.40% observed CTR vs 5.82% mean predicted CTR |
+
+These are **synthetic public-demo acceptance results**, not replacements for the original benchmark metrics.
+
 ## Why SMOTE was rejected
 
 Partial SMOTE reduced false negatives from **2,572 to 2,034**, but ROC-AUC and PR-AUC did not improve. Full balance expanded the benchmark training sample from **80,000 to 148,740 rows (~1.86×)** and slightly reduced F1. The project therefore keeps CatBoost/class-weight/threshold strategies as the preferred production direction instead of adding offline cost without demonstrated ranking lift.
@@ -120,7 +145,7 @@ ClickPilot_AI/
 ├── scripts/                     # Generate demo data, train, predict, local QA
 ├── tests/                       # Feature, inference and API tests
 ├── data/sample/                 # Synthetic public demonstration data
-├── docs/                        # Architecture, deployment, LinkedIn/resume assets
+├── docs/                        # Architecture, release, launch and interview assets
 ├── notebooks/                   # Original analytical notebook
 ├── reports/                     # Polished PDF case-study note/artifact location
 ├── .github/workflows/           # CI + deployment smoke checks
@@ -198,9 +223,9 @@ Interactive Swagger: **https://clickpilot-api.onrender.com/docs**
 ## Quality checks
 
 ```bash
-ruff check .
-pytest -q
-python -m compileall src api app scripts
+python -m ruff check src api app scripts tests
+python -m pytest -q
+python -m compileall -q src api app scripts
 ```
 
 Windows full QA:
@@ -222,9 +247,12 @@ See [MODEL_CARD.md](MODEL_CARD.md) and [docs/responsible-use.md](docs/responsibl
 
 ## Portfolio assets
 
+- [Public release acceptance](docs/RELEASE_ACCEPTANCE.md)
 - [Live deployment status](docs/LIVE_DEPLOYMENT_STATUS.md)
 - [LinkedIn launch package](docs/LINKEDIN_LAUNCH.md)
+- [20–30 second recruiter demo](docs/RECRUITER_DEMO.md)
 - [Resume-ready project copy](docs/RESUME.md)
+- [Interview defense guide](docs/INTERVIEW_DEFENSE.md)
 - [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
 - [Architecture](docs/architecture.md)
 - [Deployment guide](docs/deployment.md)
@@ -245,7 +273,7 @@ See [MODEL_CARD.md](MODEL_CARD.md) and [docs/responsible-use.md](docs/responsibl
 - [x] Deploy public FastAPI endpoint
 - [x] Deploy permanent Streamlit URL
 - [x] Connect Streamlit to deployed FastAPI
-- [ ] Complete live functional acceptance QA
+- [x] Complete live functional acceptance QA
 - [ ] Add calibration curve and reliability diagram
 - [ ] Add SHAP/local explanation panel
 - [ ] Add feature-store-compatible historical CTR features
