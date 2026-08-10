@@ -10,6 +10,15 @@ get_bundle.cache_clear()
 client = TestClient(app)
 
 
+def test_root_landing():
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "ClickPilot AI API"
+    assert body["status"] == "ok"
+    assert body["documentation"] == "/docs"
+
+
 def test_health():
     response = client.get("/health")
     assert response.status_code == 200
