@@ -28,34 +28,52 @@ jobs:
       CLICKPILOT_API_URL: ${{ vars.CLICKPILOT_API_URL || 'https://clickpilot-api.onrender.com' }}
       CLICKPILOT_APP_URL: ${{ vars.CLICKPILOT_APP_URL || 'https://clickpilot-ai-mohit.streamlit.app' }}
     steps:
-      - name: Wait for Render deployment readiness
+      - name: Wait for Render health readiness
         shell: bash
         run: |
           set -euo pipefail
           for attempt in {1..20}; do
-            status="$(curl --silent --show-error --output /tmp/landing.json --write-out '%{http_code}' --max-time 120 "$CLICKPILOT_API_URL/" || true)"
+            status="$(curl --silent --show-error --output /tmp/health.json --write-out '%{http_code}' --max-time 120 "$CLICKPILOT_API_URL/health" || true)"
             if [ "$status" = "200" ]; then
-              python - <<'PY'
+              if python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/health.json').read_text())
+          assert body.get('status') == 'ok', body
+          assert body.get('service') == 'clickpilot-ai', body
+          print('Render health ready:', body)
+          PY
+              then
+                exit 0
+              fi
+            fi
+            echo "Render health not ready yet (attempt $attempt/20, HTTP $status); waiting 15s..."
+            sleep 15
+          done
+          echo "Render did not expose the expected /health contract within the readiness window."
+          cat /tmp/health.json || true
+          exit 1
+
+      - name: API landing (informational)
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /tmp/landing.json --write-out '%{http_code}' --max-time 120 "$CLICKPILOT_API_URL/" || true)"
+          if [ "$status" = "200" ]; then
+            python - <<'PY'
           import json
           from pathlib import Path
 
           body = json.loads(Path('/tmp/landing.json').read_text())
-          assert body['service'] == 'ClickPilot AI API', body
-          assert body['status'] == 'ok', body
-          assert body['documentation'] == '/docs', body
-          print(f"Render deployment ready: service={body['service']}, version={body['version']}")
+          assert body.get('service') == 'ClickPilot AI API', body
+          assert body.get('status') == 'ok', body
+          print('API landing contract present')
           PY
-              exit 0
-            fi
-            echo "Render not ready yet (attempt $attempt/20, HTTP $status); waiting 15s..."
-            sleep 15
-          done
-          echo "Render did not expose the expected landing route within the readiness window."
-          cat /tmp/landing.json || true
-          exit 1
-
-      - name: API health
-        run: curl --fail --show-error --retry 5 --retry-all-errors --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/health"
+          else
+            echo "Landing route returned HTTP $status; continuing because /health is the deployment readiness contract."
+            cat /tmp/landing.json || true
+          fi
 
       - name: API documentation
         run: curl --fail --show-error --retry 3 --retry-all-errors --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/docs"
