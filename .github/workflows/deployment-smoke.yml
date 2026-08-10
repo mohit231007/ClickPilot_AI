@@ -14,6 +14,9 @@ on:
       - "requirements.txt"
       - ".github/workflows/deployment-smoke.yml"
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -21,6 +24,9 @@ jobs:
       CLICKPILOT_API_URL: ${{ vars.CLICKPILOT_API_URL || 'https://clickpilot-api.onrender.com' }}
       CLICKPILOT_APP_URL: ${{ vars.CLICKPILOT_APP_URL || 'https://clickpilot-ai-mohit.streamlit.app' }}
     steps:
+      - name: API landing
+        run: curl --fail --show-error --retry 5 --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/"
+
       - name: API health
         run: curl --fail --show-error --retry 5 --retry-delay 15 --max-time 120 "$CLICKPILOT_API_URL/health"
 
@@ -28,10 +34,28 @@ jobs:
         run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/docs"
 
       - name: Model metadata
-        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/model-info"
+        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /tmp/model-info.json "$CLICKPILOT_API_URL/model-info"
 
       - name: Original benchmark endpoint
-        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /dev/null "$CLICKPILOT_API_URL/benchmark"
+        run: curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 --output /tmp/benchmark.json "$CLICKPILOT_API_URL/benchmark"
+
+      - name: Validate benchmark separation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          model_info = json.loads(Path('/tmp/model-info.json').read_text())
+          benchmark = json.loads(Path('/tmp/benchmark.json').read_text())
+
+          assert 'public_demo_model' in model_info, model_info
+          assert 'original_case_study' in model_info, model_info
+          assert model_info['original_case_study']['training_impressions'] == 463291, model_info
+          assert model_info['original_case_study']['training_clicks'] == 31331, model_info
+          assert model_info['public_demo_model']['model_version'].startswith('demo-'), model_info
+          assert benchmark['selected_model'], benchmark
+          print('benchmark separation smoke passed')
+          PY
 
       - name: Live prediction contract
         run: |
@@ -63,7 +87,196 @@ jobs:
           probability = body['click_probability']
           assert 0.0 <= probability <= 1.0, body
           assert body['model_version'].startswith('demo-'), body
+          assert body['propensity_band'] in {'Low', 'Medium', 'High', 'Unknown'}, body
+          assert isinstance(body['warnings'], list), body
           print(f"prediction smoke passed: p(click)={probability:.4f}, model={body['model_version']}")
+          PY
+
+      - name: Batch prediction contract
+        run: |
+          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+            -X POST "$CLICKPILOT_API_URL/predict-batch" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "impressions": [
+                {
+                  "DateTime": "2026-07-06T14:30:00",
+                  "user_id": "1500",
+                  "product": "J",
+                  "campaign_id": "C101",
+                  "webpage_id": "W1",
+                  "product_category_1": "1",
+                  "user_group_id": "1",
+                  "gender": "Male",
+                  "age_level": "5",
+                  "user_depth": "2",
+                  "city_development_index": "4",
+                  "var_1": "0",
+                  "value_per_click": 1.5,
+                  "cpm_cost": 25.0
+                },
+                {
+                  "DateTime": "2026-07-06T20:15:00",
+                  "user_id": "1700",
+                  "product": "C",
+                  "campaign_id": "C105",
+                  "webpage_id": "W3",
+                  "product_category_1": "2",
+                  "user_group_id": "2",
+                  "gender": "Female",
+                  "age_level": "4",
+                  "user_depth": "3",
+                  "city_development_index": "3",
+                  "var_1": "1",
+                  "value_per_click": 1.5,
+                  "cpm_cost": 25.0
+                }
+              ]
+            }' | tee /tmp/batch.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/batch.json').read_text())
+          predictions = body['predictions']
+          assert len(predictions) == 2, body
+          assert all(0.0 <= item['click_probability'] <= 1.0 for item in predictions), body
+          assert all(item['model_version'].startswith('demo-') for item in predictions), body
+          print('batch prediction smoke passed')
+          PY
+
+      - name: Scenario comparison contract
+        run: |
+          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+            -X POST "$CLICKPILOT_API_URL/compare" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "baseline": {
+                "DateTime": "2026-07-06T14:30:00",
+                "user_id": "1500",
+                "product": "C",
+                "campaign_id": "C101",
+                "webpage_id": "W1",
+                "product_category_1": "1",
+                "user_group_id": "1",
+                "gender": "Male",
+                "age_level": "5",
+                "user_depth": "2",
+                "city_development_index": "4",
+                "var_1": "0",
+                "value_per_click": 1.5,
+                "cpm_cost": 25.0
+              },
+              "proposed": {
+                "DateTime": "2026-07-06T14:30:00",
+                "user_id": "1500",
+                "product": "J",
+                "campaign_id": "C105",
+                "webpage_id": "W3",
+                "product_category_1": "1",
+                "user_group_id": "1",
+                "gender": "Male",
+                "age_level": "5",
+                "user_depth": "2",
+                "city_development_index": "4",
+                "var_1": "0",
+                "value_per_click": 1.5,
+                "cpm_cost": 25.0
+              },
+              "volume": 100000
+            }' | tee /tmp/compare.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/compare.json').read_text())
+          assert 0.0 <= body['baseline_probability'] <= 1.0, body
+          assert 0.0 <= body['proposed_probability'] <= 1.0, body
+          assert body['volume'] == 100000, body
+          assert 'Predictive what-if comparison' in body['interpretation'], body
+          print('scenario comparison smoke passed')
+          PY
+
+      - name: Labeled evaluation contract
+        run: |
+          curl --fail --show-error --retry 3 --retry-delay 10 --max-time 120 \
+            -X POST "$CLICKPILOT_API_URL/evaluate" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "impressions": [
+                {
+                  "DateTime": "2026-07-06T09:00:00",
+                  "user_id": "1001",
+                  "product": "J",
+                  "campaign_id": "C101",
+                  "webpage_id": "W1",
+                  "product_category_1": "1",
+                  "user_group_id": "1",
+                  "gender": "Male",
+                  "age_level": "5",
+                  "user_depth": "2",
+                  "city_development_index": "4",
+                  "var_1": "0",
+                  "is_click": 0
+                },
+                {
+                  "DateTime": "2026-07-06T12:00:00",
+                  "user_id": "1002",
+                  "product": "C",
+                  "campaign_id": "C105",
+                  "webpage_id": "W3",
+                  "product_category_1": "2",
+                  "user_group_id": "2",
+                  "gender": "Female",
+                  "age_level": "4",
+                  "user_depth": "3",
+                  "city_development_index": "3",
+                  "var_1": "1",
+                  "is_click": 1
+                },
+                {
+                  "DateTime": "2026-07-06T16:30:00",
+                  "user_id": "1003",
+                  "product": "D",
+                  "campaign_id": "C103",
+                  "webpage_id": "W2",
+                  "product_category_1": "3",
+                  "user_group_id": "1",
+                  "gender": "Male",
+                  "age_level": "3",
+                  "user_depth": "1",
+                  "city_development_index": "2",
+                  "var_1": "0",
+                  "is_click": 0
+                },
+                {
+                  "DateTime": "2026-07-06T20:00:00",
+                  "user_id": "1004",
+                  "product": "I",
+                  "campaign_id": "C106",
+                  "webpage_id": "W4",
+                  "product_category_1": "4",
+                  "user_group_id": "3",
+                  "gender": "Female",
+                  "age_level": "6",
+                  "user_depth": "3",
+                  "city_development_index": "1",
+                  "var_1": "1",
+                  "is_click": 1
+                }
+              ]
+            }' | tee /tmp/evaluate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/evaluate.json').read_text())
+          assert body['rows'] == 4, body
+          assert 0.0 <= body['observed_ctr'] <= 1.0, body
+          assert 0.0 <= body['mean_predicted_ctr'] <= 1.0, body
+          assert body['roc_auc'] is not None, body
+          assert body['pr_auc'] is not None, body
+          print('labeled evaluation smoke passed')
           PY
 
       - name: Streamlit page
