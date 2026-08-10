@@ -25,7 +25,12 @@ from clickpilot.benchmark import (
     SELECTED_MODEL,
     SMOTE_EXPERIMENT,
 )
-from clickpilot.inference import ModelBundle, evaluate_labeled_batch, load_or_create_bundle, score_impressions
+from clickpilot.inference import (
+    ModelBundle,
+    evaluate_labeled_batch,
+    load_or_create_bundle,
+    score_impressions,
+)
 from clickpilot.simulation import compare_scenarios
 
 app = FastAPI(
