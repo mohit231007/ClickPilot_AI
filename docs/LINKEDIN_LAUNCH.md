@@ -17,21 +17,23 @@ The original case study contains **463,291 ad impressions and 31,331 clicks (6.7
 
 The selected **CatBoost + personalization** model achieved **0.580 ROC-AUC and 0.078 PR-AUC** on that holdout, outperforming the Logistic Regression baseline by about **10.2% on ROC-AUC and 19.8% on PR-AUC**.
 
-The more interesting result was the personalization ablation: the base CatBoost model was around **0.550 ROC-AUC**, while user/product/interaction features pushed it to about **0.596**.
+The personalization ablation was also useful: the base CatBoost model was around **0.550 ROC-AUC**, while user/product/interaction features pushed the experimental score to about **0.596**.
 
 But I did not want to publish another notebook-only project, so I productionized the case study with:
 
 - a publicly deployed Streamlit frontend for single-impression scoring and batch ranking,
-- a separately deployed FastAPI backend with documented prediction endpoints,
-- value-aware bidding logic using click probability, value-per-click, and CPM,
-- baseline-vs-proposed scenario simulation,
+- a separately deployed Dockerized FastAPI backend,
+- value-aware decision logic using click probability, value-per-click, and CPM,
+- baseline-vs-proposed predictive scenario simulation,
 - labeled-batch monitoring for ROC-AUC, PR-AUC, Brier score, log loss, precision, recall, and F1,
 - model versioning, data-quality checks, Docker, automated tests, GitHub Actions, and responsible-use documentation,
 - a deterministic synthetic public demo model so the original challenge rows are not redistributed.
 
 I also tested SMOTE. It reduced false negatives at one operating point, but did **not** improve AUC and full balancing expanded the benchmark training sample by about **1.86×**. I rejected it rather than adding cost without demonstrated ranking lift.
 
-The biggest lesson from this project: **production-quality data science is not just model selection. It is validation design, leakage control, decision economics, APIs, monitoring, and being explicit about what the model cannot claim.**
+Before calling the product launch-ready, I exercised the public system end-to-end: single scoring, 50-row batch ranking + CSV export, scenario comparison, and a 1,000-row synthetic monitoring stream all completed successfully through the deployed app.
+
+The biggest lesson from this project: **production-quality data science is not just model selection. It is validation design, leakage control, decision economics, APIs, monitoring, deployment, and being explicit about what the model cannot claim.**
 
 Live demo: **https://clickpilot-ai-mohit.streamlit.app/**  
 API / Swagger: **https://clickpilot-api.onrender.com/docs**  
@@ -57,6 +59,7 @@ Architecture details for anyone interested:
 - expected-value decision rule = `P(click) × value_per_click - cost_per_impression`
 - labeled-batch monitoring includes ranking + probability quality metrics
 - Docker + pytest + Ruff + GitHub Actions
+- public acceptance checks completed for all four product workflows
 
 The model card also documents the short validation window, demographic-feature risks, non-causal interpretation, and feedback-loop concerns.
 
@@ -68,22 +71,26 @@ Interactive API docs: https://clickpilot-api.onrender.com/docs
 ## LinkedIn Featured section copy
 
 **ClickPilot AI — End-to-End CTR Intelligence Platform**  
-Production-style ad-click prediction project using CatBoost personalization, temporal validation, batch scoring, value-aware bidding, FastAPI, Streamlit, Docker, CI, monitoring, and responsible-use guardrails. Original case-study holdout: ROC-AUC 0.580 / PR-AUC 0.078 on 463K impressions.
+Publicly deployed and acceptance-tested ad-click prediction project using CatBoost personalization, temporal validation, batch scoring/export, value-aware decision logic, FastAPI, Streamlit, Docker, CI, monitoring, and responsible-use guardrails. Original case-study holdout: ROC-AUC 0.580 / PR-AUC 0.078 on 463K impressions.
 
 Live: https://clickpilot-ai-mohit.streamlit.app/
 
 ---
 
-## 30-second demo recording script
+## Acceptance proof to mention only if useful
 
-1. Open the public home page and show the original case-study KPI cards plus `Runtime backend: FastAPI`.
-2. Score one impression and show probability, propensity band, lift, and expected value per 1,000 impressions.
-3. Switch to Batch Ranking, upload the synthetic CSV, sort the opportunities, and download predictions.
-4. Open Decision Simulator and compare two product/campaign/webpage scenarios.
-5. Show Model & Evidence with the CatBoost benchmark, personalization ablation, and SMOTE rejection.
-6. Finish on Monitoring and show ROC-AUC/PR-AUC/Brier metrics for a labeled synthetic stream.
+- single score: 5.00% click probability with the default public demo inputs
+- batch ranking: 50 rows, 5.96% mean predicted CTR, 4.0% high-propensity share, ranked CSV export validated
+- scenario simulation: 5.51% baseline vs 4.80% proposed, -708 expected clicks over 100K in the default comparison
+- monitoring: 1,000-row synthetic stream, 6.40% observed CTR vs 5.82% mean predicted CTR
 
-Target duration: 25-35 seconds.
+These are **public-demo acceptance results**, not replacements for the original case-study holdout metrics.
+
+---
+
+## 20–30 second demo recording script
+
+Use [RECRUITER_DEMO.md](RECRUITER_DEMO.md) for the optimized recording sequence.
 
 ---
 
@@ -97,13 +104,13 @@ Target duration: 25-35 seconds.
 6. **Product architecture** — deployed Streamlit + Render FastAPI + shared Python package.
 7. **Decision intelligence** — probability × value-per-click − media cost.
 8. **Monitoring & responsibility** — calibration, drift, segment performance, feedback loops.
-9. **Live proof** — https://clickpilot-ai-mohit.streamlit.app/ + GitHub + PDF case study.
+9. **Live proof** — deployed app + GitHub + public acceptance record + PDF case study.
 
 ---
 
 ## Launch sequence
 
-- Day 0: primary launch post + screenshot or 30-second demo.
+- Day 0: primary launch post + screenshot or 20–30 second demo.
 - Day 0: technical first comment.
 - Day 1: add to Featured and Projects.
 - Day 2: architecture carousel.
@@ -115,4 +122,4 @@ Target duration: 25-35 seconds.
 
 ## Release note
 
-Infrastructure deployment is complete. Publish the primary launch post only after the live single-score, batch-ranking, decision-simulator, and monitoring acceptance checks have been executed successfully through the public application.
+The four public functional workflows have passed acceptance QA: single scoring, batch ranking/export, decision simulation, and monitoring. The primary LinkedIn launch claim may now truthfully describe ClickPilot AI as publicly deployed and functionally acceptance-tested. Keep synthetic demo metrics clearly separate from original case-study holdout metrics.
