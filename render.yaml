@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: clickpilot-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: CLICKPILOT_MODEL_VERSION
+        value: demo-0.2.0
