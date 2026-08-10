@@ -7,6 +7,7 @@ Without it, the app falls back to the shared in-process package for local/offlin
 from __future__ import annotations
 
 import os
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -16,6 +17,20 @@ from clickpilot.inference import ModelBundle, evaluate_labeled_batch, score_impr
 from clickpilot.simulation import compare_scenarios
 
 DEFAULT_HTTP_TIMEOUT_SECONDS = 90.0
+API_STRING_FIELDS = {
+    "user_id",
+    "product",
+    "campaign_id",
+    "webpage_id",
+    "product_category_1",
+    "product_category_2",
+    "user_group_id",
+    "gender",
+    "age_level",
+    "user_depth",
+    "city_development_index",
+    "var_1",
+}
 
 
 def api_url() -> str | None:
@@ -37,11 +52,44 @@ def _http_timeout() -> float:
         return DEFAULT_HTTP_TIMEOUT_SECONDS
 
 
+def _canonical_string(value: Any) -> str:
+    """Convert CSV-derived categorical scalars to the API's canonical string form."""
+
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def _payload(record: dict[str, Any], value_per_click: float, cpm_cost: float) -> dict[str, Any]:
-    payload = dict(record)
-    dt = payload.get("DateTime")
-    if isinstance(dt, pd.Timestamp):
-        payload["DateTime"] = dt.isoformat()
+    """Build a JSON-safe API payload from UI or pandas/CSV records.
+
+    Pandas represents missing CSV values as NaN and often promotes integer-like
+    categorical columns to floats (for example ``11`` becomes ``11.0``). The API
+    contract expects those categorical values as strings or null, so normalize
+    them here before sending requests to FastAPI.
+    """
+
+    payload: dict[str, Any] = {}
+    for key, raw_value in record.items():
+        # Labels belong to evaluation requests, not prediction requests.
+        if key == "is_click":
+            continue
+
+        value = raw_value
+        if isinstance(value, pd.Timestamp):
+            value = value.isoformat()
+        elif isinstance(value, (datetime, date)):
+            value = value.isoformat()
+        elif pd.isna(value):
+            value = None
+        elif hasattr(value, "item"):
+            value = value.item()
+
+        if key in API_STRING_FIELDS and value is not None:
+            value = _canonical_string(value)
+
+        payload[key] = value
+
     payload["value_per_click"] = float(value_per_click)
     payload["cpm_cost"] = float(cpm_cost)
     return payload
